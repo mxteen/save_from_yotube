@@ -35,7 +35,14 @@ Paste a YouTube link, choose output folder/type/quality, then click Start.
 - Without FFmpeg, MP4 merges and MP3 conversion are limited. The app falls back gracefully and logs a note.
 - yt-dlp supports many sites and options; this app uses sensible defaults.
 
+## Dependencies
+
+This project uses:
+- [DearPyGui](https://github.com/hoffstadt/DearPyGui) - MIT License
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Unlicense
+
 ## References
 
 - yt-dlp README: `https://github.com/yt-dlp/yt-dlp#readme`
 - yt-dlp on PyPI: `https://pypi.org/project/yt-dlp/`
+- DearPyGui Documentation: `https://dearpygui.readthedocs.io/en/latest/`
