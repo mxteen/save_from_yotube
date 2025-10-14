@@ -10,7 +10,7 @@ A simple Windows desktop app to download YouTube videos or audio using yt-dlp, w
 
 ## Prerequisites
 
-- Python 3.9+
+- Python 3.12+
 - Optional but recommended: FFmpeg available on PATH for merging and MP3 conversion
   - Windows: Download a static build and add `bin/` to PATH.
 

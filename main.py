@@ -4,6 +4,7 @@ import threading
 import queue
 import shutil
 from typing import Dict, Optional, Tuple
+import time
 
 # Third-party
 import dearpygui.dearpygui as dpg
@@ -19,6 +20,7 @@ APP_TITLE = "YouTube Saver (yt-dlp + Dear PyGui)"
 ui_update_queue: "queue.Queue[Tuple[str, Dict]]" = queue.Queue()
 download_thread: Optional[threading.Thread] = None
 cancel_event = threading.Event()
+last_pump_time = 0.0
 
 # Item tags
 TAG_MAIN_WINDOW = "main_window"
@@ -107,6 +109,11 @@ def make_ydl_opts(url: str, out_dir: str, out_type: str, quality: str) -> Dict:
 		"noprogress": True,
 		"continuedl": True,
 		"consoletitle": False,
+		# SSL and timeout configurations to handle network issues
+		"socket_timeout": 30,
+		"retries": 3,
+		"fragment_retries": 3,
+		"http_chunk_size": 10485760,  # 10MB chunks
 	}
 
 	if out_type == "Video (MP4)":
@@ -237,28 +244,31 @@ def append_log(text: str) -> None:
 
 
 def ui_pump() -> None:
-	"""Apply UI updates from the background thread; reschedule itself."""
-	try:
-		while True:
-			evt_type, payload = ui_update_queue.get_nowait()
-			if evt_type == "log":
-				append_log(payload.get("text", ""))
-			elif evt_type == "progress":
-				pct = max(0.0, min(1.0, float(payload.get("percent", 0.0))))
-				txt = payload.get("text", f"{pct*100:.1f}%")
-				dpg.set_value(TAG_PROGRESS_BAR, pct)
-				dpg.configure_item(TAG_PROGRESS_BAR, overlay=txt)
-			elif evt_type == "done":
-				ok = payload.get("ok", False)
-				if ok:
-					append_log("All tasks completed.")
-				dpg.configure_item(TAG_START_BTN, enabled=True)
-				dpg.configure_item(TAG_CANCEL_BTN, enabled=False)
-	except queue.Empty:
-		pass
-	finally:
-		# Reschedule next pump
-		dpg.add_timer(callback=ui_pump, delay=0.15)
+    """Apply UI updates from the background thread; throttled to ~150ms."""
+    global last_pump_time
+    now = time.perf_counter()
+    if now - last_pump_time < 0.15:
+        return
+    last_pump_time = now
+
+    try:
+        while True:
+            evt_type, payload = ui_update_queue.get_nowait()
+            if evt_type == "log":
+                append_log(payload.get("text", ""))
+            elif evt_type == "progress":
+                pct = max(0.0, min(1.0, float(payload.get("percent", 0.0))))
+                txt = payload.get("text", f"{pct*100:.1f}%")
+                dpg.set_value(TAG_PROGRESS_BAR, pct)
+                dpg.configure_item(TAG_PROGRESS_BAR, overlay=txt)
+            elif evt_type == "done":
+                ok = payload.get("ok", False)
+                if ok:
+                    append_log("All tasks completed.")
+                dpg.configure_item(TAG_START_BTN, enabled=True)
+                dpg.configure_item(TAG_CANCEL_BTN, enabled=False)
+    except queue.Empty:
+        pass
 
 
 def default_downloads_dir() -> str:
@@ -325,14 +335,16 @@ def build_ui() -> None:
 	):
 		dpg.add_file_extension(".*")
 
-	# Start the periodic UI pump using a timer
-	dpg.add_timer(callback=ui_pump, delay=0.2)
-
 	dpg.create_viewport(title=APP_TITLE, width=740, height=600)
 	dpg.setup_dearpygui()
 	dpg.show_viewport()
 	dpg.set_primary_window(TAG_MAIN_WINDOW, True)
-	dpg.start_dearpygui()
+
+	# Main rendering loop with periodic UI updates
+	while dpg.is_dearpygui_running():
+		ui_pump()  # Process UI updates from background thread
+		dpg.render_dearpygui_frame()
+
 	dpg.destroy_context()
 
 
