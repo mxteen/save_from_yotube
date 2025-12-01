@@ -114,6 +114,22 @@ def make_ydl_opts(url: str, out_dir: str, out_type: str, quality: str) -> Dict:
 		"retries": 3,
 		"fragment_retries": 3,
 		"http_chunk_size": 10485760,  # 10MB chunks
+		# Headers to avoid 403 Forbidden errors
+		"user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"referer": "https://www.youtube.com/",
+		"http_headers": {
+			"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+			"Accept-Language": "en-us,en;q=0.5",
+			"Accept-Encoding": "gzip, deflate",
+			"Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
+			"Connection": "keep-alive",
+		},
+		# Additional options to help with 403 errors
+		"extractor_args": {
+			"youtube": {
+				"player_client": ["android", "web"],  # Try android client first, fallback to web
+			}
+		},
 	}
 
 	if out_type == "Video (MP4)":
